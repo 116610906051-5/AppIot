@@ -5,88 +5,68 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryDark,
-    onPrimary = Color(0xFF003258),
-    primaryContainer = Color(0xFF004A77),
-    onPrimaryContainer = Color(0xFFCEE5FF),
-    
-    secondary = SecondaryDark,
-    onSecondary = Color(0xFF003738),
-    secondaryContainer = Color(0xFF004F50),
-    onSecondaryContainer = Color(0xFF6FF7F8),
-    
-    tertiary = Color(0xFFB3C5EA),
-    onTertiary = Color(0xFF1D2F4F),
-    tertiaryContainer = Color(0xFF334566),
-    onTertiaryContainer = Color(0xFFD3E3FF),
-    
-    error = Error,
-    onError = Color(0xFF690005),
-    errorContainer = Color(0xFF93000A),
-    onErrorContainer = Color(0xFFFFDAD6),
-    
-    background = Color(0xFF191C1E),
-    onBackground = Color(0xFFE1E2E5),
-    
-    surface = Color(0xFF191C1E),
-    onSurface = Color(0xFFE1E2E5),
-    surfaceVariant = Color(0xFF42474E),
-    onSurfaceVariant = Color(0xFFC2C7CF)
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Primary,
+// Always use dark (deep space) theme for a premium look
+private val DeepSpaceColorScheme = darkColorScheme(
+    primary = Primary,                        // Electric Blue #4F8EF7
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFD3E4FD),
-    onPrimaryContainer = Color(0xFF001C38),
-    
-    secondary = Secondary,
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFB2EBF2),
-    onSecondaryContainer = Color(0xFF002021),
-    
-    tertiary = Color(0xFF4A5F7D),
+    primaryContainer = Color(0xFF1A2D50),
+    onPrimaryContainer = PrimaryLight,
+
+    secondary = Secondary,                    // Cyan Teal #00D4AA
+    onSecondary = Color(0xFF003326),
+    secondaryContainer = Color(0xFF00402F),
+    onSecondaryContainer = Color(0xFF66FFD6),
+
+    tertiary = AccentPurple,                  // Purple #8B65FF
     onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFD3E3FF),
-    onTertiaryContainer = Color(0xFF021C37),
-    
-    error = Error,
+    tertiaryContainer = Color(0xFF2D1F5E),
+    onTertiaryContainer = Color(0xFFDDD0FF),
+
+    error = Error,                            // #FF4F6B
     onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
-    
-    background = Color(0xFFFDFCFF),
-    onBackground = Color(0xFF1A1C1E),
-    
-    surface = Color(0xFFFDFCFF),
-    onSurface = Color(0xFF1A1C1E),
-    surfaceVariant = Color(0xFFE0E2EC),
-    onSurfaceVariant = Color(0xFF44474E)
+    errorContainer = Color(0xFF400015),
+    onErrorContainer = ErrorLight,
+
+    background = BackgroundDark,              // #070B14
+    onBackground = Color(0xFFE8ECF5),
+
+    surface = SurfaceDark,                    // #0F1623
+    onSurface = Color(0xFFE8ECF5),
+    surfaceVariant = SurfaceVariantDark,      // #1A2233
+    onSurfaceVariant = Color(0xFFA8B4CC),
+
+    outline = Color(0xFF2D3F5A),
+    outlineVariant = Color(0xFF1A2A3F),
+    scrim = Color(0xFF000000),
+    inverseSurface = Color(0xFFE8ECF5),
+    inverseOnSurface = Color(0xFF0F1623),
+    inversePrimary = PrimaryVariant,
+    surfaceTint = Primary
 )
 
 @Composable
 fun AntiLostAppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = true, // Always dark for premium look
+    dynamicColor: Boolean = false, // Disabled to keep our custom palette
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    val colorScheme = DeepSpaceColorScheme
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = BackgroundDark.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+        }
     }
 
     MaterialTheme(

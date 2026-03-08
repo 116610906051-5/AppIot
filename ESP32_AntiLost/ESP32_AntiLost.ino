@@ -24,6 +24,19 @@
 #define BUZZER_PIN 4       // Buzzer (ถ้ามี)
 #define BUTTON_PIN 0       // ปุ่ม BOOT
 
+// การต่อสาย Buzzer:
+// แบบ Active High: GPIO4 → Buzzer+ → Buzzer- → GND  (BUZZER_ON = HIGH)
+// แบบ Active Low:  3V3  → Buzzer+ → Buzzer- → GPIO4 (BUZZER_ON = LOW)
+#define BUZZER_ACTIVE_LOW 1   // เปลี่ยนเป็น 0 ถ้าต่อแบบ Active High
+
+#if BUZZER_ACTIVE_LOW
+  #define BUZZER_ON  LOW
+  #define BUZZER_OFF HIGH
+#else
+  #define BUZZER_ON  HIGH
+  #define BUZZER_OFF LOW
+#endif
+
 // ชื่ออุปกรณ์ (ต้องตรงกับใน MainActivity.kt)
 #define DEVICE_NAME "ESP32_AntiLost"
 
@@ -35,6 +48,7 @@ BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
+volatile bool beepRequested = false;  // ใช้ flag แทนการเรียก beep() ตรงๆ ใน BLE callback
 
 unsigned long lastBlinkTime = 0;
 bool ledState = false;
@@ -72,9 +86,10 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         Serial.print("Received: ");
         Serial.println(value);
 
-        // ถ้าได้รับคำสั่ง "BEEP" ให้ส่งเสียง
+        // ถ้าได้รับคำสั่ง "BEEP" ให้ set flag แล้วไปทำงานใน loop() แทน
+        // ห้ามเรียก beep() ตรงนี้ เพราะ delay() ใน BLE task จะ block BLE stack ทำให้ buzzer ค้าง
         if (value == "BEEP") {
-          beep();
+          beepRequested = true;
         }
         // ถ้าได้รับคำสั่ง "LED_ON"
         else if (value == "LED_ON") {
@@ -95,6 +110,7 @@ void setup() {
   // ตั้งค่า Pin
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, BUZZER_OFF);  // ปิด buzzer ทันทีตอนเปิดเครื่อง
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   // แสดงสัญญาณเริ่มต้น
@@ -150,6 +166,12 @@ void setup() {
 }
 
 void loop() {
+  // จัดการ beep จาก flag (ปลอดภัยกว่าการเรียกใน BLE callback)
+  if (beepRequested) {
+    beepRequested = false;  // clear flag ก่อนเสมอ เพื่อไม่ให้ดังวนซ้ำ
+    beep();
+  }
+
   // กระพริบ LED เมื่อไม่ได้เชื่อมต่อ
   if (!deviceConnected) {
     unsigned long currentTime = millis();
@@ -189,10 +211,10 @@ void loop() {
 // ฟังก์ชันเสียง Beep
 void beep() {
   for (int i = 0; i < 3; i++) {
-    digitalWrite(BUZZER_PIN, HIGH);
+    digitalWrite(BUZZER_PIN, BUZZER_ON);
     digitalWrite(LED_PIN, HIGH);
     delay(100);
-    digitalWrite(BUZZER_PIN, LOW);
+    digitalWrite(BUZZER_PIN, BUZZER_OFF);
     digitalWrite(LED_PIN, LOW);
     delay(100);
   }

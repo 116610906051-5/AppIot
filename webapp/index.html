@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AntiLost Web</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar reveal">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <div>
+            <h1>AntiLost</h1>
+            <p>Smart tracker web console</p>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="status-grid reveal stagger-1">
+          <article class="status-card connected">
+            <p>Firestore Sync</p>
+            <h2 id="connectionState">พร้อมใช้งาน</h2>
+          </article>
+          <article class="status-card alert">
+            <p>สถานะล่าสุด</p>
+            <h2 id="latestStatus">Loading...</h2>
+          </article>
+        </section>
+
+        <section class="panel reveal stagger-2">
+          <div class="panel-head">
+            <h3>Location History</h3>
+            <button id="refreshBtn" class="soft-btn">Refresh</button>
+          </div>
+
+          <p id="syncMessage" class="log-meta">กำลังเชื่อมต่อ Firestore...</p>
+          <div class="history-layout">
+            <div id="logList" class="log-list"></div>
+            <aside class="map-shell">
+              <div class="map-shell-head">
+                <h4>แผนที่ตำแหน่ง</h4>
+                <p id="mapHint">เลือก log เพื่อดูตำแหน่งบนแผนที่</p>
+              </div>
+              <div id="mapCanvas" class="map-canvas" aria-label="Embedded location map"></div>
+              <p id="selectedInfo" class="selected-info">ยังไม่ได้เลือกตำแหน่ง</p>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

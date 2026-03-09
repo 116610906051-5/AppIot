@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "22715756500",
+    "project_id": "gpslog-9b772",
+    "storage_bucket": "gpslog-9b772.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:22715756500:android:f7df530ac525b95ed1f041",
+        "android_client_info": {
+          "package_name": "com.example.antilost"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATVBbdOc17x9V8TH0-iaxQ0bZ9ZauLbUs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

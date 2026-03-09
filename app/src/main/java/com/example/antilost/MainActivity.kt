@@ -21,15 +21,37 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.Icon
+import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.antilost.ui.theme.AntiLostAppTheme
+import com.example.antilost.ui.theme.Primary
+import com.example.antilost.ui.theme.Secondary
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -48,6 +70,10 @@ class MainActivity : ComponentActivity() {
     private var disconnectTimer: Runnable? = null
     private var connectionRetryCount = 0 // นับจำนวนครั้งที่ลองเชื่อมต่อใหม่
     private val MAX_RETRY_COUNT = 3 // ลองสูงสุด 3 ครั้ง
+    
+    // Location Manager สำหรับ GPS tracking
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationManager: LocationManager
     
     // UUID ต้องตรงกับใน ESP32
     private val SERVICE_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
@@ -71,6 +97,10 @@ class MainActivity : ComponentActivity() {
             this,
             Settings.System.DEFAULT_ALARM_ALERT_URI
         )
+        
+        // Initialize Location Services
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        locationManager = LocationManager(this, fusedLocationClient)
 
         // อัพเดทสถานะ Bluetooth
         viewModel.updateBluetoothStatus(bluetoothAdapter.isEnabled)
@@ -79,23 +109,65 @@ class MainActivity : ComponentActivity() {
         setContent {
             AntiLostAppTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val uiState by viewModel.uiState.collectAsState()
+                    val currentScreen = remember { mutableStateOf("main") }
                     
-                    AntiLostScreen(
-                        uiState = uiState,
-                        onStartScan = { checkPermissionAndStart() },
-                        onStopScan = { stopScan() },
-                        onThresholdChange = { threshold ->
-                            viewModel.updateRssiThreshold(threshold)
-                        },
-                        onFindDevice = { sendBeepInFindMode() },
-                        onSwitchMode = { mode -> switchMode(mode) },
-                        onConnectDevice = { connectToDeviceInFindMode() },
-                        onDisconnectDevice = { disconnectFromDevice() }
-                    )
+                    when (currentScreen.value) {
+                        "main" -> {
+                            val uiState by viewModel.uiState.collectAsState()
+                            
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AntiLostScreen(
+                                    uiState = uiState,
+                                    onStartScan = { checkPermissionAndStart() },
+                                    onStopScan = { stopScan() },
+                                    onThresholdChange = { threshold ->
+                                        viewModel.updateRssiThreshold(threshold)
+                                    },
+                                    onFindDevice = { sendBeepInFindMode() },
+                                    onSwitchMode = { mode -> switchMode(mode) },
+                                    onConnectDevice = { connectToDeviceInFindMode() },
+                                    onDisconnectDevice = { disconnectFromDevice() }
+                                )
+                                
+                                // History button (bottom-right)
+                                FloatingActionButton(
+                                    onClick = { currentScreen.value = "history" },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(24.dp),
+                                    containerColor = Primary,
+                                    contentColor = Color.White
+                                ) {
+                                    Icon(Icons.Default.List, contentDescription = "Location History")
+                                }
+                            }
+                        }
+                        "history" -> {
+                            val historyViewModel: LocationHistoryViewModel = remember { LocationHistoryViewModel(locationManager) }
+                            
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                LocationHistoryScreen(historyViewModel)
+                                
+                                // Back button (top-left)
+                                FloatingActionButton(
+                                    onClick = { currentScreen.value = "main" },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(24.dp),
+                                    containerColor = Secondary,
+                                    contentColor = Color.White
+                                ) {
+                                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -148,8 +220,19 @@ class MainActivity : ComponentActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (requestCode == 100) {
-            startScan()
+        when (requestCode) {
+            100 -> {
+                // Bluetooth permissions
+                startScan()
+            }
+            200 -> {
+                // Location permissions
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "อนุญาต Location แล้ว", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "การบันทึก Location จะไม่ทำงาน", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -163,6 +246,9 @@ class MainActivity : ComponentActivity() {
                 ) != PackageManager.PERMISSION_GRANTED
             ) return
         }
+        
+        // Request location permission too
+        requestLocationPermissionIfNeeded()
 
         viewModel.startScanning()
         viewModel.clearDevices()
@@ -190,6 +276,46 @@ class MainActivity : ComponentActivity() {
         }
         
         Toast.makeText(this, "หยุดสแกน", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun requestLocationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                    200
+                )
+            }
+        }
+    }
+    
+    private fun logLocationEvent(deviceId: String, status: String) {
+        val locationPermissionGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        if (locationPermissionGranted) {
+            lifecycleScope.launch {
+                try {
+                    val targetDevice = viewModel.uiState.value.targetDevice
+                    if (targetDevice != null) {
+                        locationManager.logLocationEvent(
+                            deviceId = deviceId,
+                            deviceName = targetDevice.name,
+                            status = status
+                        )
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     private val scanCallback = object : ScanCallback() {
@@ -237,6 +363,13 @@ class MainActivity : ComponentActivity() {
                             try {
                                 mediaPlayer.start()
                                 viewModel.setAlarmPlaying(true)
+                                
+                                // บันทึก location log เมื่อแจ้งเตือนเสียง
+                                logLocationEvent(
+                                    deviceId = address,
+                                    status = "Alarm"
+                                )
+                                
                                 Toast.makeText(
                                     this@MainActivity,
                                     "⚠️ สัญญาณอ่อน! อาจอยู่ไกลเกินไป",
@@ -294,12 +427,23 @@ class MainActivity : ComponentActivity() {
                     runOnUiThread {
                         Toast.makeText(this@MainActivity, "🔗 เชื่อมต่อแล้ว...", Toast.LENGTH_SHORT).show()
                     }
+                    // บันทึก Location log
+                    val targetDevice = viewModel.uiState.value.targetDevice
+                    if (targetDevice != null) {
+                        logLocationEvent(targetDevice.address, "Connected")
+                    }
                     // ค้นหา services
                     gatt?.discoverServices()
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     targetCharacteristic = null
                     gatt?.close()
+                    
+                    // บันทึก Location log
+                    val targetDevice = viewModel.uiState.value.targetDevice
+                    if (targetDevice != null) {
+                        logLocationEvent(targetDevice.address, "Disconnected")
+                    }
                     
                     // เริ่ม scan ใหม่ทันทีหลังจากตัดการเชื่อมต่อ
                     android.os.Handler(mainLooper).postDelayed({
@@ -823,6 +967,13 @@ class MainActivity : ComponentActivity() {
                 BluetoothProfile.STATE_CONNECTED -> {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         connectionRetryCount = 0 // รีเซ็ตเมื่อเชื่อมต่อสำเร็จ
+                        
+                        // บันทึก Location log
+                        val targetDevice = viewModel.uiState.value.targetDevice
+                        if (targetDevice != null) {
+                            logLocationEvent(targetDevice.address, "Connected")
+                        }
+                        
                         runOnUiThread {
                             viewModel.setGattConnected(true)
                             Toast.makeText(this@MainActivity, "✅ เชื่อมต่อสำเร็จ!", Toast.LENGTH_SHORT).show()
@@ -849,6 +1000,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
+                    // บันทึก Location log
+                    val targetDevice = viewModel.uiState.value.targetDevice
+                    if (targetDevice != null) {
+                        logLocationEvent(targetDevice.address, "Disconnected")
+                    }
+                    
                     runOnUiThread {
                         viewModel.setGattConnected(false)
                         if (status == BluetoothGatt.GATT_SUCCESS) {

@@ -120,7 +120,7 @@ fun AntiLostScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(bottom = 28.dp, top = 6.dp)
+                contentPadding = PaddingValues(bottom = 80.dp, top = 20.dp)
             ) {
                 // Mode Selector
                 item { ModeSelectorRow(currentMode = uiState.currentMode, onModeSelected = onSwitchMode) }
@@ -216,7 +216,7 @@ fun AppTopBar(
                     listOf(Color(0xFF0B1A35), Color(0xFF091528))
                 )
             )
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
